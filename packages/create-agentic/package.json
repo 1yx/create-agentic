@@ -1,0 +1,42 @@
+{
+  "name": "create-agentic",
+  "version": "0.1.0",
+  "description": "Scaffold a TypeScript library project with agentic best practices",
+  "type": "module",
+  "bin": {
+    "create-agentic": "./dist/cli.mjs"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/cli.mjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "unbuild && node scripts/copy-templates.mjs",
+    "dev": "tsx src/cli.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "prepack": "unbuild && node scripts/copy-templates.mjs"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.9.0",
+    "citty": "^0.2.0",
+    "consola": "^3.0.0",
+    "nypm": "^0.6.0",
+    "pathe": "^2.0.0",
+    "tinyexec": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "unbuild": "^3.0.0"
+  },
+  "license": "MIT"
+}

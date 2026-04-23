@@ -1,0 +1,9 @@
+{
+  "id": "{{plugin-id}}",
+  "name": "{{plugin-name}}",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "{{plugin-description}}",
+  "author": "{{plugin-author}}",
+  "isDesktopOnly": false
+}

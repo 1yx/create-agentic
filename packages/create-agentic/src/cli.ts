@@ -6,7 +6,7 @@ import { consola } from "consola";
 import * as clack from "@clack/prompts";
 import { join } from "pathe";
 import { copyTemplate } from "./utils/copy-template.js";
-import { replacePlaceholder } from "./utils/replace-placeholder.js";
+import { scanPlaceholders, replacePlaceholders } from "./utils/replace-placeholder.js";
 import { runPostScaffoldSteps } from "./utils/run-steps.js";
 
 const TEMPLATES_DIR = join(import.meta.dirname, "templates");
@@ -106,9 +106,39 @@ const command = defineCommand({
     copyTemplate(templateDir, targetDir);
     consola.success("Template copied.");
 
-    // Replace placeholder
-    replacePlaceholder(targetDir, projectName);
-    consola.success(`Project name set to "${projectName}".`);
+    // Scan and replace placeholders
+    const placeholders = scanPlaceholders(targetDir);
+    if (placeholders.size > 0) {
+      const values: Record<string, string> = {};
+
+      if (placeholders.has("project-name")) {
+        values["project-name"] = projectName;
+        placeholders.delete("project-name");
+      }
+
+      // Prompt for remaining placeholders
+      if (placeholders.size > 0 && process.stdout.isTTY) {
+        for (const key of placeholders) {
+          const result = await clack.text({
+            message: `Value for {{${key}}}?`,
+            placeholder: key,
+          });
+          if (clack.isCancel(result)) {
+            clack.cancel("Operation cancelled.");
+            process.exit(1);
+          }
+          values[key] = result;
+        }
+      } else if (placeholders.size > 0) {
+        consola.error(
+          `Placeholders require input but no TTY detected: ${[...placeholders].map((k) => `{{${k}}}`).join(", ")}`,
+        );
+        process.exit(1);
+      }
+
+      replacePlaceholders(targetDir, values);
+      consola.success("Placeholders replaced.");
+    }
 
     // Post-scaffold steps
     await runPostScaffoldSteps({

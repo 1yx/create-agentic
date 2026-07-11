@@ -55,15 +55,15 @@ interface Asset {
 function getOptionAsset(
   category: string,
   option: string,
-  templatesDir: string,
+  templateDir: string,
 ): Asset {
   if (category === "eslint" && option === "agentic-baseline") {
-    // The bundled typescript template ships the canonical ESLint baseline.
+    // Each template ships its own ESLint baseline adapted to its dependencies
+    // (obsidian-plugin uses the `typescript-eslint` meta-package + obsidianmd;
+    // the typescript template uses the parser/plugin sub-packages). Use the
+    // chosen template's own config so a replace never drops incompatible imports.
     return {
-      content: readFileSync(
-        join(templatesDir, "typescript", "eslint.config.mjs"),
-        "utf-8",
-      ),
+      content: readFileSync(join(templateDir, "eslint.config.mjs"), "utf-8"),
       writeName: "eslint.config.mjs",
     };
   }
@@ -85,7 +85,7 @@ export function applyEnhancements(
   targetDir: string,
   enhancements: Record<string, EnhancementChoice>,
   manifest: Manifest,
-  templatesDir: string,
+  templateDir: string,
 ): void {
   const categoryByName = new Map(manifest.categories.map((c) => [c.name, c]));
 
@@ -123,7 +123,7 @@ export function applyEnhancements(
     const { content, writeName } = getOptionAsset(
       category,
       choice.option,
-      templatesDir,
+      templateDir,
     );
     const files = collectRelativeFiles(targetDir);
 

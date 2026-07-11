@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, renameSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
 import process from "node:process";
 import { join } from "pathe";
@@ -50,12 +50,15 @@ export async function executePipeline(
   }
 
   const templateDir = join(templatesDir, plan.template);
+  // Ensure the target's parent exists so nested targets (e.g. "apps/my-app")
+  // work; the interactive path creates the target recursively via copyTemplate.
+  mkdirSync(dirname(plan.target), { recursive: true });
   const tempDir = mkdtempSync(join(dirname(plan.target), ".ca-tmp-"));
 
   try {
     copyTemplate(templateDir, tempDir);
     replacePlaceholders(tempDir, plan.placeholders);
-    applyEnhancements(tempDir, plan.enhancements, manifest, templatesDir);
+    applyEnhancements(tempDir, plan.enhancements, manifest, templateDir);
   } catch (err) {
     rmSync(tempDir, { recursive: true, force: true });
     throw new PipelineError(

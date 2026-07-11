@@ -5,6 +5,15 @@ import { defineCommand, runMain } from "citty";
 import { consola } from "consola";
 import * as clack from "@clack/prompts";
 import { join } from "pathe";
+import { buildManifest } from "./manifest.js";
+import {
+  loadPlanFile,
+  resolvePlan,
+  validatePlan,
+  predictCollisions,
+  PlanError,
+} from "./plan.js";
+import { executePipeline } from "./pipeline.js";
 import { copyTemplate } from "./utils/copy-template.js";
 import { scanPlaceholders, replacePlaceholders } from "./utils/replace-placeholder.js";
 import { runPostScaffoldSteps } from "./utils/run-steps.js";
@@ -49,8 +58,67 @@ const command = defineCommand({
       default: true,
       description: "Run openspec init",
     },
+    manifest: {
+      type: "boolean",
+      default: false,
+      description:
+        "Print the machine-readable manifest (templates, categories, driver) as JSON and exit",
+    },
+    config: {
+      type: "string",
+      description:
+        "Path to a plan.json resolved by an agent (non-interactive mode)",
+    },
+    dryRun: {
+      type: "boolean",
+      default: false,
+      description:
+        "With --config: resolve + validate the plan and emit { resolvedPlan, predictedCollisions } without writing anything",
+    },
   },
   async run(ctx) {
+    // Emit self-describing manifest for agent consumption, then exit.
+    // Pure JSON to stdout — no clack/consola decoration.
+    if (ctx.args.manifest) {
+      process.stdout.write(`${JSON.stringify(buildManifest(TEMPLATES_DIR), null, 2)}\n`);
+      return;
+    }
+
+    // Non-interactive, agent-driven path: resolve + validate a plan.json.
+    if (ctx.args.config) {
+      const manifest = buildManifest(TEMPLATES_DIR);
+      const cwd = process.cwd();
+      let plan;
+      try {
+        const input = loadPlanFile(ctx.args.config);
+        plan = resolvePlan(input, {
+          positionalDir: (ctx.args.dir as string) || undefined,
+          cwd,
+        });
+        validatePlan(plan, manifest, TEMPLATES_DIR);
+      } catch (err) {
+        consola.error(err instanceof PlanError ? err.message : `Invalid plan: ${err}`);
+        process.exit(1);
+      }
+
+      if (ctx.args.dryRun) {
+        const predictedCollisions = predictCollisions(plan, manifest, TEMPLATES_DIR);
+        process.stdout.write(
+          `${JSON.stringify({ resolvedPlan: plan, predictedCollisions }, null, 2)}\n`,
+        );
+        return;
+      }
+
+      try {
+        const result = await executePipeline(plan, manifest, TEMPLATES_DIR);
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      } catch (err) {
+        consola.error(err instanceof Error ? err.message : `Execution failed: ${err}`);
+        process.exit(1);
+      }
+      return;
+    }
+
     let dir = ctx.args.dir as string;
 
     // Interactive prompt if no dir provided and TTY available
